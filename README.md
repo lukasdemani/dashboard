@@ -1,103 +1,91 @@
-# Alison Full Stack Developer Assessment
+# React Developer Assignment: Cross-Tab Collaboration Dashboard
 
-This technical assessment evaluates your proficiency in developing a modern full-stack web application using React, Next.js, and PostgreSQL. You will demonstrate your ability to create web application with database integration and efficient data handling.
+## Time Limit: 3 hours
 
-## Project Overview
+You are expected to focus on the core requirements. Bonus features are optional and may be partially implemented if time allows.
 
-You will build a web application that demonstrates your proficiency in:
+## Overview
 
-- Frontend development with React and Next.js
-- Raw SQL database operations
-- Form handling and validation
+Build a real-time collaboration dashboard that synchronizes user activity across multiple browser tabs using the  
+<a href="https://www.npmjs.com/package/react-broadcast-sync" target="_blank" rel="noopener noreferrer">react-broadcast-sync</a> library.
 
-## Technical Requirements
+---
 
-### Environment Setup
+## Setup Instructions
 
-- Install Node.js and pnpm using [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm)
-- Set up a PostgreSQL database using Docker.
+1. Create a new React project using any setup you prefer (e.g., Vite, CRA, Next.js)
+2. Install the required package:
+   ```bash
+   npm install react-broadcast-sync
+   ```
+3. Use any styling approach (CSS, Tailwind, MUI, etc.)
 
-```bash
-docker run --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres
-```
+---
 
-- Choose and implement a database connection method:
-  - Direct database connection using [`postgres`](https://github.com/porsager/postgres) or any other client
-  - ORM (Prisma, Drizzle, or TypeORM) for schema management and connection only
-  - Connection pooling recommended for performance optimization
+## Requirements - Mandatory
 
-### Project Requirements
+### 1. Custom Hook
+Create a custom hook called `useCollaborativeSession` that:
+- Sets up the broadcast channel
+- Manages internal state for users, chat, counter
+- Exposes state and actions:
+  - `users`, `messages`, `counter`
+  - `sendMessage()`, `updateCounter()`, `markTyping()`, etc.
+- Internally uses `react-broadcast-sync` to handle cross-tab communication
 
-You will need to create a Single Page Application (SPA) with the following technical requirements:
+### 2. User Presence System
+- Detect and display active users (based on tabs)
+- Show a user list with:
+  - Username or ID (you can generate random names if needed)
+  - Last activity timestamp
+- Detect and visually indicate when a user joins or leaves
 
-The application should implement client-side routing with two main pages accessible via these routes:
+### 3. Shared Counter
+- Counter that stays synchronized across all tabs
+- Any user can increment/decrement the value
+- Show which user performed the last action
+- Display timestamp of last action
+  
+### 4. Real-time Chat
+- Text area for message writing
+- Show typing indicators when users are actively typing
+- Synchronize conversation content across all tabs
+- For each message display which user sent it and its timestamp
+- Allow users to delete **their own** messages from the chat with syncing across tabs
+- Allow users to send a messages with expiration
 
-- `/numbers` - For number pair calculations
-- `/grades` - For grade management and analysis
+### 5. Technical Standards
+- Use proper error handling and cleanup
+- Use TypeScript or well-typed PropTypes
+- Abstract logic into reusable components/hooks
+- Keep the code modular, readable, and clean
+- Synchronize existing state on page load (rehydrate from current messages/users)
 
-Include a top navigation bar that provides navigation between pages
+---
 
-The application can utilize a modern UI component library for consistent design and enhanced user experience. While you have flexibility in choosing any UI library, [Material UI](https://mui.com/) is preferred.
+## Bonus Features
+- Theme sync across tabs (light/dark mode)
+- Include debouncing for frequent updates
+- Implement loading states
+- Add responsive layout
+- Activity feed showing recent actions
+- User avatar system
+- Focus/cursor position indicators
 
-For data fetching and database communication, implement one of these approaches:
+---
 
-- [API Routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) - Create RESTful endpoints in Next.js to handle client-side data fetching with proper error handling and loading states
+## Deliverables
+1. Complete source code
+2. README with setup instructions and implementation notes
+3. Working demo (open multiple tabs to test)
 
-- [React Server Components (RSC)](https://nextjs.org/docs/app/getting-started/fetching-data) - Leverage server-side rendering for optimal performance, with streaming capabilities and selective hydration
+---
 
-Ensure your implementation includes proper error boundaries, loading indicators, and responsive design principles regardless of your chosen approach.
-
-#### numbers Page
-
-Form for submitting integers:
-- Include a number input field that accepts both positive and negative integers.
-- On submit, save the value into the numbers table using raw SQL.
- 
-Display adjacent number pairs:
-- Below the form, show a table of adjacent numbers and their sums.
-- The format should be as follows:
- 
-| ID 1 | Number 1 | ID 2 | Number 2 | Sum |
-| ---- | -------- | ---- | -------- | --- |
-| 1    | 3        | 2    | 5        | 8   |
-| 2    | 5        | 3    | 7        | 12  |
-| 3    | 7        | 4    | 2        | 9   |
-
-- Auto-refresh the table when a new number is added.
- 
-#### grades Page
-
-Create a form with:
-
-- A dropdown for class selection with options: Math, Science, and History
-- A numeric grade input field (must be between 0 and 100)
-- A submit button that inserts the entry into the grades table using raw SQL
-
-## Technical Constraints
-
-- Must use **raw SQL** queries for database operations
-- ORM usage is allowed only for schema creation and seeding, but all data operations must use raw SQL queries
-
-## Bonus Points
-
-- Unit and integration tests
-- Performance optimizations
-- Input validation
-- Error boundary implementation
-
-## Getting Started
-
-1. Fork the repository
-2. Clone the forked repository to your local machine
-3. Install dependencies: `pnpm install`
-4. Start PostgreSQL: Use the Docker command above
-5. Run development server: pnpm dev
-6. Access the application: <http://localhost:3000>
-
-## Submission Guidelines
-
-- Ensure all features are working
-- Include database schema
-- Document any assumptions or decisions made during development
-- Push your code to your forked repository
-- Notify us once you have completed the assessment
+## Evaluation Criteria
+- Proper use and integration of `react-broadcast-sync`
+- Correct and clean custom hook abstraction
+- Working real-time sync across tabs
+- Well-structured and maintainable code
+- Functional and user-friendly UI
+- Handling of edge cases (e.g., expired messages, tab close)
+- Bonus points for creative features, polish, or great UX

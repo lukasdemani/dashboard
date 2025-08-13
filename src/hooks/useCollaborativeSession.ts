@@ -13,6 +13,14 @@ export interface Activity {
   metadata?: Record<string, unknown>;
 }
 
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  timestamp: number;
+}
+
 export interface Message {
   id: string;
   userId: string;
@@ -35,11 +43,13 @@ interface UserMessage {
     | 'sync-request'
     | 'sync-response'
     | 'activity'
-    | 'counter-update';
+    | 'counter-update'
+    | 'new-message';
   user?: User;
   userId?: string;
   users?: User[];
   counter?: CounterState;
+  chatMessage?: ChatMessage;
   timestamp: number;
 }
 
@@ -148,6 +158,7 @@ export const useCollaborativeSession = () => {
     lastChangedBy: '',
     lastChangeAt: Date.now(),
   });
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   const [currentUser, setCurrentUser] = useState<User>(() => createUserSession());
   const currentUserRef = useRef<User>(currentUser);
@@ -245,6 +256,15 @@ export const useCollaborativeSession = () => {
             setCounter(message.counter);
           }
           break;
+        case 'new-message':
+          if (message.chatMessage && message.chatMessage.userId !== currentUser.id) {
+            console.log(
+              '💬 New chat message via native channel:',
+              message.chatMessage
+            );
+            setChatMessages((prevMessages) => [...prevMessages, message.chatMessage!]);
+          }
+          break;
       }
     },
     [currentUser]
@@ -302,10 +322,8 @@ export const useCollaborativeSession = () => {
         savePersistentUser(updatedUser);
         currentUserRef.current = updatedUser;
         
-        // Update the current user state
         setCurrentUser(updatedUser);
 
-        // Update the current user in the users list immediately
         setUsers((prevUsers) => {
           const existingUserIndex = prevUsers.findIndex(
             (u) => u.id === updatedUser.id
@@ -459,12 +477,18 @@ export const useCollaborativeSession = () => {
               setCounter(message.counter);
             }
             break;
+
+          case 'new-message':
+            if (message.chatMessage) {
+              console.log('💬 New chat message received:', message.chatMessage);
+              setChatMessages((prevMessages) => [...prevMessages, message.chatMessage!]);
+            }
+            break;
         }
       }
     });
   }, [messages, postMessage, currentUser]);
 
-  // Initialize current user in the users list
   useEffect(() => {
     setUsers((prevUsers) => {
       const existingUserIndex = prevUsers.findIndex(
@@ -557,9 +581,24 @@ export const useCollaborativeSession = () => {
     };
   }, [postMessage, currentUser, removeInactiveUsers]);
 
-  const sendMessage = (text: string) => {
+  const sendMessageToChat = (text: string) => {
+    const chatMessage: ChatMessage = {
+      id: generateId(),
+      userId: currentUser.id,
+      userName: currentUser.name,
+      text: text.trim(),
+      timestamp: Date.now(),
+    };
+
+    setChatMessages((prevMessages) => [...prevMessages, chatMessage]);
+
     addUserActivity('message_sent', { message: text });
-    console.log('Sending message:', text);
+
+    postMessage({
+      type: 'new-message',
+      chatMessage,
+      timestamp: Date.now(),
+    } as UserMessage);
   };
 
   const updateCounter = (newValue: number) => {
@@ -609,7 +648,8 @@ export const useCollaborativeSession = () => {
     currentUser: currentUserRef.current,
     messages: [],
     counter,
-    sendMessage,
+    chatMessages,
+    sendMessageToChat,
     updateCounter,
     addUser,
     removeUser,

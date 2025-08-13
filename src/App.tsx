@@ -1,6 +1,7 @@
 import { BroadcastProvider } from 'react-broadcast-sync';
 import { useCollaborativeSession } from './hooks/useCollaborativeSession';
 import { UserList } from './components/UserList';
+import { Chat } from './components/Chat';
 
 function App() {
   return (
@@ -16,6 +17,8 @@ function AppContent() {
     currentUser,
     messages,
     counter,
+    chatMessages,
+    sendMessageToChat,
     updateCounter,
   } = useCollaborativeSession();
 
@@ -72,11 +75,19 @@ function AppContent() {
         </div>
       </div>
 
-      <UserList users={users} />
+      <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 1fr', marginTop: '2rem' }}>
+        <UserList users={users} />
+        
+        <div>
+          <h2>Chat</h2>
+          <Chat messages={chatMessages} sendMessage={sendMessageToChat} />
+        </div>
+      </div>
 
       <div style={{ marginTop: '2rem' }}>
         <h2>Debug Info</h2>
         <p>Messages: {messages.length}</p>
+        <p>Chat Messages: {chatMessages.length}</p>
         <p>Total Users: {users.length}</p>
       </div>
     </div>

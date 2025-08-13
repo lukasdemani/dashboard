@@ -2,6 +2,7 @@ import { BroadcastProvider } from 'react-broadcast-sync';
 import { useCollaborativeSession } from './hooks/useCollaborativeSession';
 import { UserList } from './components/UserList';
 import { Chat } from './components/Chat';
+import ThemeButton from './components/ThemeButton';
 
 function App() {
   return (
@@ -19,15 +20,20 @@ function AppContent() {
     counter,
     chatMessages,
     typingUsers,
+    theme,
     sendMessageToChat,
     markTyping,
     deleteMessage,
+    setTheme,
     updateCounter,
   } = useCollaborativeSession();
 
   return (
-    <div className='app' style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
-      <h1>Collaborative Dashboard</h1>
+    <div className={`app ${theme}`} style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <h1>Collaborative Dashboard</h1>
+        <ThemeButton theme={theme} onThemeChange={setTheme} />
+      </div>
       
       <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 1fr' }}>
         <div>

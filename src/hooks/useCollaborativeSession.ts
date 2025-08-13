@@ -22,20 +22,13 @@ export interface ChatMessage {
   expiresAt?: number;
 }
 
-export interface Message {
-  id: string;
-  userId: string;
-  userName: string;
-  text: string;
-  timestamp: number;
-  expiresAt?: number;
-}
-
 export interface CounterState {
   value: number;
   lastChangedBy: string;
   lastChangeAt: number;
 }
+
+export type Theme = 'light' | 'dark';
 
 interface UserMessage {
   type:
@@ -165,6 +158,10 @@ export const useCollaborativeSession = () => {
   });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const savedTheme = localStorage.getItem('dashboard-theme') as Theme;
+    return savedTheme || 'light';
+  });
 
   const [currentUser, setCurrentUser] = useState<User>(() =>
     createUserSession()
@@ -722,6 +719,12 @@ export const useCollaborativeSession = () => {
     } as UserMessage);
   };
 
+  const setTheme = (newTheme: Theme) => {
+    console.log('🎨 Setting theme locally:', newTheme);
+    setThemeState(newTheme);
+    localStorage.setItem('dashboard-theme', newTheme);
+  };
+
   const updateCounter = (newValue: number) => {
     addUserActivity('counter_updated', {
       oldValue: counter.value,
@@ -771,9 +774,11 @@ export const useCollaborativeSession = () => {
     counter,
     chatMessages,
     typingUsers,
+    theme,
     sendMessageToChat,
     markTyping,
     deleteMessage,
+    setTheme,
     updateCounter,
     addUser,
     removeUser,

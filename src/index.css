@@ -1,59 +1,307 @@
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
+/* Base styles for the collaborative dashboard */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  line-height: 1.6;
+  transition: all 0.3s ease;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* App container with theme support */
+.app {
+  min-height: 100vh;
+  padding: 2rem;
+  transition: all 0.3s ease;
+}
+
+.app.light {
+  background-color: #f8fafc;
+  color: #1a202c;
+}
+
+.app.dark {
+  background-color: #1a202c;
+  color: #f8fafc;
+}
+
+/* Headers and typography */
+.app h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.app h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid;
+  padding-bottom: 0.5rem;
+}
+
+.app.light h2 {
+  border-color: #e2e8f0;
+}
+
+.app.dark h2 {
+  border-color: #4a5568;
+}
+
+/* Cards and panels */
+.card {
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid;
+  transition: all 0.3s ease;
+}
+
+.app.light .card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.app.dark .card {
+  background: #2d3748;
+  border-color: #4a5568;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Buttons */
+button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.app.light button {
+  background: #3182ce;
+  color: #ffffff;
+  border-color: #3182ce;
+}
+
+.app.light button:hover {
+  background: #2b77cb;
+}
+
+.app.dark button {
+  background: #4299e1;
+  color: #1a202c;
+  border-color: #4299e1;
+}
+
+.app.dark button:hover {
+  background: #63b3ed;
+}
+
+/* Input fields */
+input, textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease;
+}
+
+.app.light input,
+.app.light textarea {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #1a202c;
+}
+
+.app.light input:focus,
+.app.light textarea:focus {
+  border-color: #3182ce;
+  outline: none;
+}
+
+.app.dark input,
+.app.dark textarea {
+  background: #2d3748;
+  border-color: #4a5568;
+  color: #f8fafc;
+}
+
+.app.dark input:focus,
+.app.dark textarea:focus {
+  border-color: #4299e1;
+  outline: none;
+}
+
+/* Chat specific styles */
+.chat-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.app.light .chat-container {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.app.dark .chat-container {
+  background: #2d3748;
+  border-color: #4a5568;
+}
+
+.message-item {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid;
+  position: relative;
+}
+
+.app.light .message-item {
+  background: #f7fafc;
+  border-color: #e2e8f0;
+}
+
+.app.dark .message-item {
+  background: #4a5568;
+  border-color: #718096;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.app.light .message-header {
+  color: #718096;
+}
+
+.app.dark .message-header {
+  color: #a0aec0;
+}
+
+.delete-button {
+  background: #e53e3e !important;
+  color: white !important;
+  border-color: #e53e3e !important;
+  padding: 0.25rem 0.5rem !important;
+  font-size: 0.75rem !important;
+}
+
+.delete-button:hover {
+  background: #c53030 !important;
+}
+
+.expiration-warning {
+  font-size: 0.75rem;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+.app.light .expiration-warning {
+  color: #e53e3e;
+}
+
+.app.dark .expiration-warning {
+  color: #feb2b2;
+}
+
+/* Typing indicator */
+.typing-indicator {
+  font-style: italic;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.app.light .typing-indicator {
+  color: #4a5568;
+}
+
+.app.dark .typing-indicator {
+  color: #a0aec0;
+}
+
+/* User list */
+.user-item {
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid;
+}
+
+.app.light .user-item {
+  background: #edf2f7;
+  border-color: #e2e8f0;
+}
+
+.app.dark .user-item {
+  background: #4a5568;
+  border-color: #718096;
 }
 
 #root {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
-  text-align: center;
+  width: 100%;
 }
 
-.app {
-  padding: 2rem;
+/* Light theme (default) */
+.app.light {
+  background-color: #ffffff;
+  color: #333333;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
+.app.light h1,
+.app.light h2,
+.app.light h3 {
+  color: #333333;
+}
 
-  a:hover {
-    color: #747bff;
-  }
+/* Dark theme */
+.app.dark {
+  background-color: #1a1a1a;
+  color: #ffffff;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.app.dark h1,
+.app.dark h2,
+.app.dark h3 {
+  color: #ffffff;
+}
+
+/* Dark theme for input elements */
+.app.dark input,
+.app.dark textarea,
+.app.dark button {
+  background-color: #333333;
+  color: #ffffff;
+  border-color: #555555;
+}
+
+.app.dark button:hover {
+  background-color: #444444;
+}
+
+/* Dark theme for cards/containers */
+.app.dark > div > div {
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 1rem;
 }

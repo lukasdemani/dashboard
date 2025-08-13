@@ -41,7 +41,8 @@ interface UserMessage {
     | 'counter-update'
     | 'new-message'
     | 'user-typing'
-    | 'delete-message';
+    | 'delete-message'
+    | 'theme-change';
   user?: User;
   userId?: string;
   users?: User[];
@@ -49,6 +50,7 @@ interface UserMessage {
   chatMessage?: ChatMessage;
   messageId?: string;
   isTyping?: boolean;
+  theme?: Theme;
   timestamp: number;
 }
 
@@ -165,6 +167,7 @@ export const useCollaborativeSession = () => {
   });
 
   const [joinedUsers, setJoinedUsers] = useState<Set<string>>(new Set());
+  void joinedUsers;
 
   const [currentUser, setCurrentUser] = useState<User>(() =>
     createUserSession()
@@ -188,7 +191,7 @@ export const useCollaborativeSession = () => {
       const systemMessage: ChatMessage = {
         id: crypto.randomUUID(),
         userId: 'system',
-        userName: 'Sistema',
+    userName: 'System',
         text,
         timestamp: Date.now(),
         type: 'system',
@@ -228,7 +231,7 @@ export const useCollaborativeSession = () => {
                     if (!prev.has(message.user!.id)) {
                       const newSet = new Set(prev);
                       newSet.add(message.user!.id);
-                      addSystemMessage(`${message.user!.name} entrou no chat`);
+                      addSystemMessage(`${message.user!.name} joined the chat`);
                       return newSet;
                     }
                     return prev;
@@ -270,7 +273,7 @@ export const useCollaborativeSession = () => {
                 (u) => u.id === message.userId
               );
               if (leavingUser) {
-                addSystemMessage(`${leavingUser.name} saiu do chat`);
+                addSystemMessage(`${leavingUser.name} left the chat`);
                 setJoinedUsers((prev) => {
                   const newSet = new Set(prev);
                   newSet.delete(message.userId!);
@@ -355,6 +358,13 @@ export const useCollaborativeSession = () => {
             setChatMessages((prevMessages) =>
               prevMessages.filter((msg) => msg.id !== message.messageId)
             );
+          }
+          break;
+        case 'theme-change':
+          if (message.theme && message.userId !== currentUser.id) {
+            console.log('🎨 Theme change via native channel:', message.theme);
+            setThemeState(message.theme);
+            localStorage.setItem('dashboard-theme', message.theme);
           }
           break;
       }
@@ -626,6 +636,14 @@ export const useCollaborativeSession = () => {
               );
             }
             break;
+
+          case 'theme-change':
+            if (message.theme && message.userId !== currentUser.id) {
+              console.log('🎨 Theme change received:', message.theme);
+              setThemeState(message.theme);
+              localStorage.setItem('dashboard-theme', message.theme);
+            }
+            break;
         }
       }
     });
@@ -777,9 +795,16 @@ export const useCollaborativeSession = () => {
   };
 
   const setTheme = (newTheme: Theme) => {
-    console.log('🎨 Setting theme locally:', newTheme);
+    console.log('🎨 Setting theme and broadcasting:', newTheme);
     setThemeState(newTheme);
     localStorage.setItem('dashboard-theme', newTheme);
+    
+    postMessage({
+      type: 'theme-change',
+      userId: currentUser.id,
+      theme: newTheme,
+      timestamp: Date.now(),
+    } as UserMessage);
   };
 
   const updateCounter = (newValue: number) => {

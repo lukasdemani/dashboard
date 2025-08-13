@@ -16,7 +16,6 @@ function AppContent() {
   const {
     users,
     currentUser,
-    messages,
     counter,
     chatMessages,
     typingUsers,
@@ -29,83 +28,51 @@ function AppContent() {
   } = useCollaborativeSession();
 
   return (
-    <div className={`app ${theme}`} style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1>Collaborative Dashboard</h1>
-        <ThemeButton theme={theme} onThemeChange={setTheme} />
-      </div>
-      
-      <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 1fr' }}>
-        <div>
-          <h2>Your Info</h2>
-          <p><strong>Name:</strong> {currentUser.name}</p>
-          <p><strong>ID:</strong> {currentUser.id}</p>
-        </div>
-        
-        <div>
-          <h2>Counter</h2>
-          <div style={{ marginBottom: '1rem' }}>
-            <strong>Value:</strong> {counter.value}
-          </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <button 
-              onClick={() => updateCounter(counter.value + 1)}
-              style={{
-                padding: '0.5rem 1rem',
-                marginRight: '0.5rem',
-                border: 'none',
-                borderRadius: '4px',
-                background: '#007bff',
-                color: 'white',
-                cursor: 'pointer',
-              }}
-            >
-              Increment
-            </button>
-            <button 
-              onClick={() => updateCounter(counter.value - 1)}
-              style={{
-                padding: '0.5rem 1rem',
-                border: 'none',
-                borderRadius: '4px',
-                background: '#dc3545',
-                color: 'white',
-                cursor: 'pointer',
-              }}
-            >
-              Decrement
-            </button>
-          </div>
-          {counter.lastChangedBy && (
-            <p style={{ fontSize: '0.875rem', color: '#666' }}>
-              Last changed by: {counter.lastChangedBy} at {new Date(counter.lastChangeAt).toLocaleTimeString()}
-            </p>
-          )}
-        </div>
-      </div>
+    <div className={`app ${theme}`}>
+      <div className="container">
+        <header className="header">
+          <h1 className="title">Collaborative Dashboard</h1>
+          <ThemeButton theme={theme} onThemeChange={setTheme} />
+        </header>
 
-      <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 1fr', marginTop: '2rem' }}>
-        <UserList users={users} />
-        
-        <div>
-          <h2>Chat</h2>
-          <Chat 
-            messages={chatMessages} 
-            typingUsers={typingUsers}
-            currentUser={currentUser}
-            users={users}
-            sendMessage={sendMessageToChat}
-            markTyping={markTyping}
-            deleteMessage={deleteMessage}
-          />
-        </div>
-      </div>
+        <section className="grid grid-2">
+          <div className="card">
+            <h2 className="subtitle">Your Info</h2>
+            <p><strong>Name:</strong> {currentUser.name}</p>
+            <p><strong>ID:</strong> {currentUser.id}</p>
+          </div>
 
-      <div style={{ marginTop: '2rem' }}>
-        <h2>Debug Info</h2>
-        <p>Messages: {messages.length}</p>
-        <p>Chat Messages: {chatMessages.length}</p>
-        <p>Total Users: {users.length}</p>
+          <div className="card">
+            <h2 className="subtitle">Counter</h2>
+            <div className="stat"><strong>Value:</strong> {counter.value}</div>
+            <div className="actions">
+              <button className="btn btn-primary" onClick={() => updateCounter(counter.value + 1)}>Increment</button>
+              <button className="btn btn-danger" onClick={() => updateCounter(counter.value - 1)}>Decrement</button>
+            </div>
+            {counter.lastChangedBy && (
+              <p className="muted">
+                Last changed by: {counter.lastChangedBy} at {new Date(counter.lastChangeAt).toLocaleTimeString()}
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="grid grid-2 mt-lg">
+          <UserList users={users} />
+
+          <div className="card">
+            <h2 className="subtitle">Chat</h2>
+            <Chat 
+              messages={chatMessages} 
+              typingUsers={typingUsers}
+              currentUser={currentUser}
+              users={users}
+              sendMessage={sendMessageToChat}
+              markTyping={markTyping}
+              deleteMessage={deleteMessage}
+            />
+          </div>
+        </section>
       </div>
     </div>
   );

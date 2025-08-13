@@ -18,7 +18,10 @@ function AppContent() {
     messages,
     counter,
     chatMessages,
+    typingUsers,
     sendMessageToChat,
+    markTyping,
+    deleteMessage,
     updateCounter,
   } = useCollaborativeSession();
 
@@ -80,7 +83,15 @@ function AppContent() {
         
         <div>
           <h2>Chat</h2>
-          <Chat messages={chatMessages} sendMessage={sendMessageToChat} />
+          <Chat 
+            messages={chatMessages} 
+            typingUsers={typingUsers}
+            currentUser={currentUser}
+            users={users}
+            sendMessage={sendMessageToChat}
+            markTyping={markTyping}
+            deleteMessage={deleteMessage}
+          />
         </div>
       </div>
 

@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
-import { ChatMessage } from '../hooks/useCollaborativeSession';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { ChatMessage, User } from '../hooks/useCollaborativeSession';
 
 interface ChatProps {
   messages: ChatMessage[];
+  typingUsers: string[];
+  currentUser: User;
+  users: User[];
   sendMessage: (text: string) => void;
+  markTyping: (isTyping: boolean) => void;
+  deleteMessage: (messageId: string) => void;
 }
 
 const styles = {
@@ -85,10 +90,79 @@ const styles = {
     fontStyle: 'italic',
     padding: '2rem',
   },
+  deleteButton: {
+    fontSize: '0.75rem',
+    padding: '0.25rem 0.5rem',
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '3px',
+    cursor: 'pointer',
+    marginLeft: '0.5rem',
+  },
+  typingIndicator: {
+    padding: '0.5rem 1rem',
+    fontSize: '0.875rem',
+    fontStyle: 'italic',
+    color: '#666',
+    backgroundColor: '#f8f9fa',
+    borderTop: '1px solid #ddd',
+  },
 };
 
-export const Chat: React.FC<ChatProps> = ({ messages, sendMessage }) => {
+export const Chat: React.FC<ChatProps> = ({ 
+  messages, 
+  typingUsers, 
+  currentUser, 
+  users, 
+  sendMessage, 
+  markTyping, 
+  deleteMessage 
+}) => {
   const [inputText, setInputText] = useState('');
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isCurrentlyTyping, setIsCurrentlyTyping] = useState(false);
+
+  const getUserNameById = useCallback((userId: string) => {
+    const user = users.find(u => u.id === userId);
+    return user ? user.name : 'Unknown User';
+  }, [users]);
+
+  const handleTyping = useCallback(() => {
+    if (!isCurrentlyTyping) {
+      markTyping(true);
+      setIsCurrentlyTyping(true);
+    }
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set new timeout to stop typing indicator
+    typingTimeoutRef.current = setTimeout(() => {
+      markTyping(false);
+      setIsCurrentlyTyping(false);
+    }, 2000); // Stop typing after 2 seconds of inactivity
+  }, [markTyping, isCurrentlyTyping]);
+
+  const handleStopTyping = useCallback(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    if (isCurrentlyTyping) {
+      markTyping(false);
+      setIsCurrentlyTyping(false);
+    }
+  }, [markTyping, isCurrentlyTyping]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -104,6 +178,13 @@ export const Chat: React.FC<ChatProps> = ({ messages, sendMessage }) => {
     if (text) {
       sendMessage(text);
       setInputText('');
+      handleStopTyping();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter' || e.shiftKey) {
+      handleTyping();
     }
   };
 
@@ -126,9 +207,20 @@ export const Chat: React.FC<ChatProps> = ({ messages, sendMessage }) => {
             <div key={message.id} style={styles.message}>
               <div style={styles.messageHeader}>
                 <span style={styles.userName}>{message.userName}</span>
-                <span style={styles.timestamp}>
-                  {formatTimestamp(message.timestamp)}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={styles.timestamp}>
+                    {formatTimestamp(message.timestamp)}
+                  </span>
+                  {message.userId === currentUser.id && (
+                    <button
+                      onClick={() => deleteMessage(message.id)}
+                      style={styles.deleteButton}
+                      title="Delete message"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </div>
               <div style={styles.messageText}>{message.text}</div>
             </div>
@@ -136,12 +228,26 @@ export const Chat: React.FC<ChatProps> = ({ messages, sendMessage }) => {
         )}
       </div>
       
+      {/* Typing indicator */}
+      {typingUsers.length > 0 && (
+        <div style={styles.typingIndicator}>
+          {typingUsers.length === 1 
+            ? `${getUserNameById(typingUsers[0])} is typing...`
+            : typingUsers.length === 2
+            ? `${getUserNameById(typingUsers[0])} and ${getUserNameById(typingUsers[1])} are typing...`
+            : `${typingUsers.length} people are typing...`
+          }
+        </div>
+      )}
+      
       <div style={styles.inputArea}>
         <form onSubmit={handleSubmit} style={styles.form}>
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={handleKeyDown}
             onKeyPress={handleKeyPress}
+            onBlur={handleStopTyping}
             placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
             style={styles.textarea}
           />

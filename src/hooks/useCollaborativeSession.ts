@@ -19,6 +19,7 @@ export interface ChatMessage {
   userName: string;
   text: string;
   timestamp: number;
+  expiresAt?: number;
 }
 
 export interface Message {
@@ -44,12 +45,16 @@ interface UserMessage {
     | 'sync-response'
     | 'activity'
     | 'counter-update'
-    | 'new-message';
+    | 'new-message'
+    | 'user-typing'
+    | 'delete-message';
   user?: User;
   userId?: string;
   users?: User[];
   counter?: CounterState;
   chatMessage?: ChatMessage;
+  messageId?: string;
+  isTyping?: boolean;
   timestamp: number;
 }
 
@@ -159,6 +164,7 @@ export const useCollaborativeSession = () => {
     lastChangeAt: Date.now(),
   });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
   const [currentUser, setCurrentUser] = useState<User>(() => createUserSession());
   const currentUserRef = useRef<User>(currentUser);
@@ -263,6 +269,27 @@ export const useCollaborativeSession = () => {
               message.chatMessage
             );
             setChatMessages((prevMessages) => [...prevMessages, message.chatMessage!]);
+          }
+          break;
+        case 'user-typing':
+          if (message.userId !== currentUser.id && message.isTyping !== undefined) {
+            setTypingUsers((prevTyping) => {
+              if (message.isTyping) {
+                return prevTyping.includes(message.userId!) 
+                  ? prevTyping 
+                  : [...prevTyping, message.userId!];
+              } else {
+                return prevTyping.filter((id) => id !== message.userId);
+              }
+            });
+          }
+          break;
+        case 'delete-message':
+          if (message.messageId) {
+            console.log('🗑️ Message deletion via native channel:', message.messageId);
+            setChatMessages((prevMessages) => 
+              prevMessages.filter((msg) => msg.id !== message.messageId)
+            );
           }
           break;
       }
@@ -484,6 +511,29 @@ export const useCollaborativeSession = () => {
               setChatMessages((prevMessages) => [...prevMessages, message.chatMessage!]);
             }
             break;
+
+          case 'user-typing':
+            if (message.userId !== currentUser.id && message.isTyping !== undefined) {
+              setTypingUsers((prevTyping) => {
+                if (message.isTyping) {
+                  return prevTyping.includes(message.userId!) 
+                    ? prevTyping 
+                    : [...prevTyping, message.userId!];
+                } else {
+                  return prevTyping.filter((id) => id !== message.userId);
+                }
+              });
+            }
+            break;
+
+          case 'delete-message':
+            if (message.messageId) {
+              console.log('🗑️ Message deletion received:', message.messageId);
+              setChatMessages((prevMessages) => 
+                prevMessages.filter((msg) => msg.id !== message.messageId)
+              );
+            }
+            break;
         }
       }
     });
@@ -501,6 +551,18 @@ export const useCollaborativeSession = () => {
       return prevUsers;
     });
   }, [currentUser]);
+
+  // Clean up expired messages
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setChatMessages((prevMessages) => 
+        prevMessages.filter((msg) => !msg.expiresAt || msg.expiresAt > now)
+      );
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const userId = currentUser.id;
@@ -601,6 +663,30 @@ export const useCollaborativeSession = () => {
     } as UserMessage);
   };
 
+  const markTyping = (isTyping: boolean) => {
+    postMessage({
+      type: 'user-typing',
+      userId: currentUser.id,
+      isTyping,
+      timestamp: Date.now(),
+    } as UserMessage);
+  };
+
+  const deleteMessage = (messageId: string) => {
+    // Remove from local state immediately
+    setChatMessages((prevMessages) => 
+      prevMessages.filter((msg) => msg.id !== messageId)
+    );
+
+    // Broadcast to other users
+    postMessage({
+      type: 'delete-message',
+      messageId,
+      userId: currentUser.id,
+      timestamp: Date.now(),
+    } as UserMessage);
+  };
+
   const updateCounter = (newValue: number) => {
     addUserActivity('counter_updated', {
       oldValue: counter.value,
@@ -649,7 +735,10 @@ export const useCollaborativeSession = () => {
     messages: [],
     counter,
     chatMessages,
+    typingUsers,
     sendMessageToChat,
+    markTyping,
+    deleteMessage,
     updateCounter,
     addUser,
     removeUser,

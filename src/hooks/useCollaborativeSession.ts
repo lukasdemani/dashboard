@@ -20,6 +20,7 @@ export interface ChatMessage {
   text: string;
   timestamp: number;
   expiresAt?: number;
+  type?: 'user' | 'system';
 }
 
 export interface CounterState {
@@ -163,6 +164,8 @@ export const useCollaborativeSession = () => {
     return savedTheme || 'light';
   });
 
+  const [joinedUsers, setJoinedUsers] = useState<Set<string>>(new Set());
+
   const [currentUser, setCurrentUser] = useState<User>(() =>
     createUserSession()
   );
@@ -179,6 +182,22 @@ export const useCollaborativeSession = () => {
     messagesCount: messages.length,
     channelName: channel ? 'available' : 'null',
   });
+
+  const addSystemMessage = useCallback(
+    (text: string) => {
+      const systemMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        userId: 'system',
+        userName: 'Sistema',
+        text,
+        timestamp: Date.now(),
+        type: 'system',
+      };
+
+      setChatMessages((prev) => [...prev, systemMessage]);
+    },
+    [setChatMessages]
+  );
 
   const handleNativeMessage = useCallback(
     (message: UserMessage) => {
@@ -204,6 +223,17 @@ export const useCollaborativeSession = () => {
                 newUsers[existingUserIndex] = message.user!;
                 return newUsers;
               } else {
+                if (message.type === 'join') {
+                  setJoinedUsers((prev) => {
+                    if (!prev.has(message.user!.id)) {
+                      const newSet = new Set(prev);
+                      newSet.add(message.user!.id);
+                      addSystemMessage(`${message.user!.name} entrou no chat`);
+                      return newSet;
+                    }
+                    return prev;
+                  });
+                }
                 return [...prevUsers, message.user!];
               }
             });
@@ -234,9 +264,21 @@ export const useCollaborativeSession = () => {
         case 'leave':
           if (message.userId && message.userId !== currentUser.id) {
             console.log('👋 User leaving via native channel:', message.userId);
-            setUsers((prevUsers) =>
-              prevUsers.filter((u) => u.id !== message.userId)
-            );
+
+            setUsers((prevUsers) => {
+              const leavingUser = prevUsers.find(
+                (u) => u.id === message.userId
+              );
+              if (leavingUser) {
+                addSystemMessage(`${leavingUser.name} saiu do chat`);
+                setJoinedUsers((prev) => {
+                  const newSet = new Set(prev);
+                  newSet.delete(message.userId!);
+                  return newSet;
+                });
+              }
+              return prevUsers.filter((u) => u.id !== message.userId);
+            });
           }
           break;
         case 'sync-request':
@@ -317,7 +359,7 @@ export const useCollaborativeSession = () => {
           break;
       }
     },
-    [currentUser]
+    [currentUser, addSystemMessage]
   );
 
   useEffect(() => {
@@ -419,6 +461,7 @@ export const useCollaborativeSession = () => {
           case 'join':
             if (message.user && message.user.id !== currentUser.id) {
               console.log('📥 JOIN message received:', message.user);
+
               setUsers((prevUsers) => {
                 console.log('👥 Previous users before join:', prevUsers);
                 const existingUserIndex = prevUsers.findIndex(
@@ -430,6 +473,15 @@ export const useCollaborativeSession = () => {
                   newUsers[existingUserIndex] = message.user!;
                   console.log('🔄 Updated existing user, new list:', newUsers);
                 } else {
+                  setJoinedUsers((prev) => {
+                    if (!prev.has(message.user!.id)) {
+                      const newSet = new Set(prev);
+                      newSet.add(message.user!.id);
+                      addSystemMessage(`${message.user!.name} entrou no chat`);
+                      return newSet;
+                    }
+                    return prev;
+                  });
                   newUsers = [...prevUsers, message.user!];
                   console.log('➕ Added new user, new list:', newUsers);
                 }
@@ -454,9 +506,20 @@ export const useCollaborativeSession = () => {
 
           case 'leave':
             if (message.userId && message.userId !== currentUser.id) {
-              setUsers((prevUsers) =>
-                prevUsers.filter((u) => u.id !== message.userId)
-              );
+              setUsers((prevUsers) => {
+                const leavingUser = prevUsers.find(
+                  (u) => u.id === message.userId
+                );
+                if (leavingUser) {
+                  addSystemMessage(`${leavingUser.name} saiu do chat`);
+                  setJoinedUsers((prev) => {
+                    const newSet = new Set(prev);
+                    newSet.delete(message.userId!);
+                    return newSet;
+                  });
+                }
+                return prevUsers.filter((u) => u.id !== message.userId);
+              });
             }
             break;
 
@@ -566,7 +629,7 @@ export const useCollaborativeSession = () => {
         }
       }
     });
-  }, [messages, postMessage, currentUser]);
+  }, [messages, postMessage, currentUser, addSystemMessage]);
 
   useEffect(() => {
     setUsers((prevUsers) => {
@@ -662,12 +725,6 @@ export const useCollaborativeSession = () => {
       }
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-
-      postMessage({
-        type: 'leave',
-        userId,
-        timestamp: Date.now(),
-      } as UserMessage);
     };
   }, [postMessage, currentUser, removeInactiveUsers]);
 

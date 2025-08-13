@@ -126,6 +126,20 @@ const styles = {
     alignSelf: 'center',
     whiteSpace: 'nowrap' as const,
   },
+  systemMessage: {
+    marginBottom: '0.5rem',
+    padding: '0.25rem 0.75rem',
+    backgroundColor: '#f8f9fa',
+    border: 'none',
+    borderRadius: '12px',
+    textAlign: 'center' as const,
+    fontSize: '0.75rem',
+    color: '#6c757d',
+    fontStyle: 'italic',
+    alignSelf: 'center',
+    maxWidth: '70%',
+    margin: '0.25rem auto',
+  },
 };
 
 export const Chat: React.FC<ChatProps> = ({ 
@@ -252,6 +266,14 @@ export const Chat: React.FC<ChatProps> = ({
           </div>
         ) : (
           messages.map((message) => {
+            if (message.type === 'system') {
+              return (
+                <div key={message.id} style={styles.systemMessage}>
+                  {message.text}
+                </div>
+              );
+            }
+
             const expirationInfo = getExpirationInfo(message);
             return (
               <div key={message.id} style={styles.message}>

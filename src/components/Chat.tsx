@@ -6,7 +6,7 @@ interface ChatProps {
   typingUsers: string[];
   currentUser: User;
   users: User[];
-  sendMessage: (text: string) => void;
+  sendMessage: (text: string, expiresAfterSeconds?: number) => void;
   markTyping: (isTyping: boolean) => void;
   deleteMessage: (messageId: string) => void;
 }
@@ -108,6 +108,24 @@ const styles = {
     backgroundColor: '#f8f9fa',
     borderTop: '1px solid #ddd',
   },
+  formRow: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginBottom: '0.5rem',
+  },
+  expirationInput: {
+    width: '80px',
+    padding: '0.25rem 0.5rem',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+    fontSize: '0.875rem',
+  },
+  expirationLabel: {
+    fontSize: '0.75rem',
+    color: '#666',
+    alignSelf: 'center',
+    whiteSpace: 'nowrap' as const,
+  },
 };
 
 export const Chat: React.FC<ChatProps> = ({ 
@@ -120,6 +138,7 @@ export const Chat: React.FC<ChatProps> = ({
   deleteMessage 
 }) => {
   const [inputText, setInputText] = useState('');
+  const [expirationMinutes, setExpirationMinutes] = useState<string>('');
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isCurrentlyTyping, setIsCurrentlyTyping] = useState(false);
 
@@ -134,16 +153,14 @@ export const Chat: React.FC<ChatProps> = ({
       setIsCurrentlyTyping(true);
     }
 
-    // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
 
-    // Set new timeout to stop typing indicator
     typingTimeoutRef.current = setTimeout(() => {
       markTyping(false);
       setIsCurrentlyTyping(false);
-    }, 2000); // Stop typing after 2 seconds of inactivity
+    }, 2000);
   }, [markTyping, isCurrentlyTyping]);
 
   const handleStopTyping = useCallback(() => {
@@ -164,6 +181,14 @@ export const Chat: React.FC<ChatProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setInputText(prev => prev);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { 
@@ -172,12 +197,35 @@ export const Chat: React.FC<ChatProps> = ({
     });
   };
 
+  const getExpirationInfo = (message: ChatMessage) => {
+    if (!message.expiresAt) return null;
+    
+    const now = Date.now();
+    const timeLeft = message.expiresAt - now;
+    
+    if (timeLeft <= 0) {
+      return null;
+    }
+    
+    const minutesLeft = Math.ceil(timeLeft / (1000 * 60));
+    if (minutesLeft <= 1) {
+      const secondsLeft = Math.ceil(timeLeft / 1000);
+      return { expired: false, text: `${secondsLeft}s` };
+    }
+    
+    return { expired: false, text: `${minutesLeft}m` };
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const text = inputText.trim();
     if (text) {
-      sendMessage(text);
+      const minutes = expirationMinutes ? parseFloat(expirationMinutes) : undefined;
+      const expiresAfterSeconds = minutes && minutes > 0 ? minutes * 60 : undefined;
+      
+      sendMessage(text, expiresAfterSeconds);
       setInputText('');
+      setExpirationMinutes('');
       handleStopTyping();
     }
   };
@@ -203,28 +251,40 @@ export const Chat: React.FC<ChatProps> = ({
             No messages yet. Start the conversation!
           </div>
         ) : (
-          messages.map((message) => (
-            <div key={message.id} style={styles.message}>
-              <div style={styles.messageHeader}>
-                <span style={styles.userName}>{message.userName}</span>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={styles.timestamp}>
-                    {formatTimestamp(message.timestamp)}
-                  </span>
-                  {message.userId === currentUser.id && (
-                    <button
-                      onClick={() => deleteMessage(message.id)}
-                      style={styles.deleteButton}
-                      title="Delete message"
-                    >
-                      ×
-                    </button>
-                  )}
+          messages.map((message) => {
+            const expirationInfo = getExpirationInfo(message);
+            return (
+              <div key={message.id} style={styles.message}>
+                <div style={styles.messageHeader}>
+                  <span style={styles.userName}>{message.userName}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={styles.timestamp}>
+                      {formatTimestamp(message.timestamp)}
+                    </span>
+                    {expirationInfo && (
+                      <span style={{
+                        fontSize: '0.75rem',
+                        color: '#28a745',
+                        fontWeight: 'bold'
+                      }}>
+                        {expirationInfo.text}
+                      </span>
+                    )}
+                    {message.userId === currentUser.id && (
+                      <button
+                        onClick={() => deleteMessage(message.id)}
+                        style={styles.deleteButton}
+                        title="Delete message"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                 </div>
+                <div style={styles.messageText}>{message.text}</div>
               </div>
-              <div style={styles.messageText}>{message.text}</div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
       
@@ -241,26 +301,44 @@ export const Chat: React.FC<ChatProps> = ({
       )}
       
       <div style={styles.inputArea}>
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <textarea
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onKeyPress={handleKeyPress}
-            onBlur={handleStopTyping}
-            placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
-            style={styles.textarea}
-          />
-          <button
-            type="submit"
-            disabled={!inputText.trim()}
-            style={{
-              ...styles.sendButton,
-              ...(inputText.trim() ? {} : styles.sendButtonDisabled),
-            }}
-          >
-            Send
-          </button>
+        <form onSubmit={handleSubmit}>
+          <div style={styles.formRow}>
+            <input
+              type="number"
+              value={expirationMinutes}
+              onChange={(e) => setExpirationMinutes(e.target.value)}
+              placeholder="Min"
+              min="0.1"
+              step="0.1"
+              style={styles.expirationInput}
+              title="Minutes until message expires (optional)"
+            />
+            <span style={styles.expirationLabel}>
+              minutes to expire (optional)
+            </span>
+          </div>
+          
+          <div style={styles.form}>
+            <textarea
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onKeyPress={handleKeyPress}
+              onBlur={handleStopTyping}
+              placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+              style={styles.textarea}
+            />
+            <button
+              type="submit"
+              disabled={!inputText.trim()}
+              style={{
+                ...styles.sendButton,
+                ...(inputText.trim() ? {} : styles.sendButtonDisabled),
+              }}
+            >
+              Send
+            </button>
+          </div>
         </form>
       </div>
     </div>

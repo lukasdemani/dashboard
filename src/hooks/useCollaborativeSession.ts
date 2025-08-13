@@ -166,7 +166,9 @@ export const useCollaborativeSession = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
-  const [currentUser, setCurrentUser] = useState<User>(() => createUserSession());
+  const [currentUser, setCurrentUser] = useState<User>(() =>
+    createUserSession()
+  );
   const currentUserRef = useRef<User>(currentUser);
 
   const { messages, channel } = useBroadcastProvider();
@@ -211,7 +213,10 @@ export const useCollaborativeSession = () => {
 
             if (message.type === 'join') {
               setTimeout(() => {
-                if (broadcastChannelRef.current && !isBroadcastChannelClosedRef.current) {
+                if (
+                  broadcastChannelRef.current &&
+                  !isBroadcastChannelClosedRef.current
+                ) {
                   try {
                     broadcastChannelRef.current.postMessage({
                       type: 'sync-response',
@@ -219,7 +224,10 @@ export const useCollaborativeSession = () => {
                       timestamp: Date.now(),
                     } as UserMessage);
                   } catch (error) {
-                    console.warn('Failed to send sync-response via BroadcastChannel:', error);
+                    console.warn(
+                      'Failed to send sync-response via BroadcastChannel:',
+                      error
+                    );
                   }
                 }
               }, 50);
@@ -240,7 +248,10 @@ export const useCollaborativeSession = () => {
               '🔄 Native sync request received from:',
               message.userId
             );
-            if (broadcastChannelRef.current && !isBroadcastChannelClosedRef.current) {
+            if (
+              broadcastChannelRef.current &&
+              !isBroadcastChannelClosedRef.current
+            ) {
               try {
                 broadcastChannelRef.current.postMessage({
                   type: 'sync-response',
@@ -248,7 +259,10 @@ export const useCollaborativeSession = () => {
                   timestamp: Date.now(),
                 } as UserMessage);
               } catch (error) {
-                console.warn('Failed to send sync-response via BroadcastChannel:', error);
+                console.warn(
+                  'Failed to send sync-response via BroadcastChannel:',
+                  error
+                );
               }
             }
           }
@@ -263,20 +277,29 @@ export const useCollaborativeSession = () => {
           }
           break;
         case 'new-message':
-          if (message.chatMessage && message.chatMessage.userId !== currentUser.id) {
+          if (
+            message.chatMessage &&
+            message.chatMessage.userId !== currentUser.id
+          ) {
             console.log(
               '💬 New chat message via native channel:',
               message.chatMessage
             );
-            setChatMessages((prevMessages) => [...prevMessages, message.chatMessage!]);
+            setChatMessages((prevMessages) => [
+              ...prevMessages,
+              message.chatMessage!,
+            ]);
           }
           break;
         case 'user-typing':
-          if (message.userId !== currentUser.id && message.isTyping !== undefined) {
+          if (
+            message.userId !== currentUser.id &&
+            message.isTyping !== undefined
+          ) {
             setTypingUsers((prevTyping) => {
               if (message.isTyping) {
-                return prevTyping.includes(message.userId!) 
-                  ? prevTyping 
+                return prevTyping.includes(message.userId!)
+                  ? prevTyping
                   : [...prevTyping, message.userId!];
               } else {
                 return prevTyping.filter((id) => id !== message.userId);
@@ -286,8 +309,11 @@ export const useCollaborativeSession = () => {
           break;
         case 'delete-message':
           if (message.messageId) {
-            console.log('🗑️ Message deletion via native channel:', message.messageId);
-            setChatMessages((prevMessages) => 
+            console.log(
+              '🗑️ Message deletion via native channel:',
+              message.messageId
+            );
+            setChatMessages((prevMessages) =>
               prevMessages.filter((msg) => msg.id !== message.messageId)
             );
           }
@@ -348,14 +374,14 @@ export const useCollaborativeSession = () => {
         const updatedUser = addActivityToUser(currentUser, newActivity);
         savePersistentUser(updatedUser);
         currentUserRef.current = updatedUser;
-        
+
         setCurrentUser(updatedUser);
 
         setUsers((prevUsers) => {
           const existingUserIndex = prevUsers.findIndex(
             (u) => u.id === updatedUser.id
           );
-          
+
           if (existingUserIndex >= 0) {
             const newUsers = [...prevUsers];
             newUsers[existingUserIndex] = updatedUser;
@@ -508,16 +534,22 @@ export const useCollaborativeSession = () => {
           case 'new-message':
             if (message.chatMessage) {
               console.log('💬 New chat message received:', message.chatMessage);
-              setChatMessages((prevMessages) => [...prevMessages, message.chatMessage!]);
+              setChatMessages((prevMessages) => [
+                ...prevMessages,
+                message.chatMessage!,
+              ]);
             }
             break;
 
           case 'user-typing':
-            if (message.userId !== currentUser.id && message.isTyping !== undefined) {
+            if (
+              message.userId !== currentUser.id &&
+              message.isTyping !== undefined
+            ) {
               setTypingUsers((prevTyping) => {
                 if (message.isTyping) {
-                  return prevTyping.includes(message.userId!) 
-                    ? prevTyping 
+                  return prevTyping.includes(message.userId!)
+                    ? prevTyping
                     : [...prevTyping, message.userId!];
                 } else {
                   return prevTyping.filter((id) => id !== message.userId);
@@ -529,7 +561,7 @@ export const useCollaborativeSession = () => {
           case 'delete-message':
             if (message.messageId) {
               console.log('🗑️ Message deletion received:', message.messageId);
-              setChatMessages((prevMessages) => 
+              setChatMessages((prevMessages) =>
                 prevMessages.filter((msg) => msg.id !== message.messageId)
               );
             }
@@ -544,7 +576,7 @@ export const useCollaborativeSession = () => {
       const existingUserIndex = prevUsers.findIndex(
         (u) => u.id === currentUser.id
       );
-      
+
       if (existingUserIndex === -1) {
         return [...prevUsers, currentUser];
       }
@@ -552,14 +584,13 @@ export const useCollaborativeSession = () => {
     });
   }, [currentUser]);
 
-  // Clean up expired messages
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
-      setChatMessages((prevMessages) => 
+      setChatMessages((prevMessages) =>
         prevMessages.filter((msg) => !msg.expiresAt || msg.expiresAt > now)
       );
-    }, 60000); // Check every minute
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
@@ -643,13 +674,19 @@ export const useCollaborativeSession = () => {
     };
   }, [postMessage, currentUser, removeInactiveUsers]);
 
-  const sendMessageToChat = (text: string) => {
+  const sendMessageToChat = (text: string, expiresAfterSeconds?: number) => {
+    const now = Date.now();
+    const expiresAt = expiresAfterSeconds
+      ? now + expiresAfterSeconds * 1000
+      : undefined;
+
     const chatMessage: ChatMessage = {
       id: generateId(),
       userId: currentUser.id,
       userName: currentUser.name,
       text: text.trim(),
-      timestamp: Date.now(),
+      timestamp: now,
+      expiresAt,
     };
 
     setChatMessages((prevMessages) => [...prevMessages, chatMessage]);
@@ -659,7 +696,7 @@ export const useCollaborativeSession = () => {
     postMessage({
       type: 'new-message',
       chatMessage,
-      timestamp: Date.now(),
+      timestamp: now,
     } as UserMessage);
   };
 
@@ -673,12 +710,10 @@ export const useCollaborativeSession = () => {
   };
 
   const deleteMessage = (messageId: string) => {
-    // Remove from local state immediately
-    setChatMessages((prevMessages) => 
+    setChatMessages((prevMessages) =>
       prevMessages.filter((msg) => msg.id !== messageId)
     );
 
-    // Broadcast to other users
     postMessage({
       type: 'delete-message',
       messageId,

@@ -42,8 +42,9 @@ const styles = {
 };
 
 export const UserList: React.FC<UserListProps> = ({ users }) => {
-  const getSessionCreatedActivity = (activities: Activity[]): Activity | undefined => {
-    return activities.find(activity => activity.type === 'session_created');
+  const getLastActivity = (activities: Activity[]): Activity | undefined => {
+    if (activities.length === 0) return undefined;
+    return activities[activities.length - 1];
   };
 
   const formatActivityTime = (timestamp: number) => {
@@ -65,7 +66,7 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
       <h3 style={styles.title}>Active Users ({users.length})</h3>
       <ul style={styles.items}>
         {users.map((user, index) => {
-          const sessionActivity = getSessionCreatedActivity(user.activities);
+          const lastActivity = getLastActivity(user.activities);
           return (
             <li 
               key={user.id} 
@@ -76,10 +77,7 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
             >
               <div style={styles.name}>{user.name}</div>
               <div style={styles.activity}>
-                Session created: {sessionActivity ? formatActivityTime(sessionActivity.timestamp) : 'Unknown'}
-              </div>
-              <div style={styles.activity}>
-                Total activities: {user.activities.length}
+                Last activity: {lastActivity ? formatActivityTime(lastActivity.timestamp) : 'No activity yet'}
               </div>
             </li>
           );

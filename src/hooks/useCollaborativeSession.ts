@@ -149,13 +149,14 @@ export const useCollaborativeSession = () => {
     lastChangeAt: Date.now(),
   });
 
-  const [currentUser] = useState<User>(() => createUserSession());
+  const [currentUser, setCurrentUser] = useState<User>(() => createUserSession());
   const currentUserRef = useRef<User>(currentUser);
 
   const { messages, channel } = useBroadcastProvider();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const isBroadcastChannelClosedRef = useRef(false);
 
   console.log('🔗 Broadcast channel state:', {
     channel: !!channel,
@@ -193,12 +194,16 @@ export const useCollaborativeSession = () => {
 
             if (message.type === 'join') {
               setTimeout(() => {
-                if (broadcastChannelRef.current) {
-                  broadcastChannelRef.current.postMessage({
-                    type: 'sync-response',
-                    user: { ...currentUser },
-                    timestamp: Date.now(),
-                  } as UserMessage);
+                if (broadcastChannelRef.current && !isBroadcastChannelClosedRef.current) {
+                  try {
+                    broadcastChannelRef.current.postMessage({
+                      type: 'sync-response',
+                      user: { ...currentUser },
+                      timestamp: Date.now(),
+                    } as UserMessage);
+                  } catch (error) {
+                    console.warn('Failed to send sync-response via BroadcastChannel:', error);
+                  }
                 }
               }, 50);
             }
@@ -218,12 +223,16 @@ export const useCollaborativeSession = () => {
               '🔄 Native sync request received from:',
               message.userId
             );
-            if (broadcastChannelRef.current) {
-              broadcastChannelRef.current.postMessage({
-                type: 'sync-response',
-                user: { ...currentUser },
-                timestamp: Date.now(),
-              } as UserMessage);
+            if (broadcastChannelRef.current && !isBroadcastChannelClosedRef.current) {
+              try {
+                broadcastChannelRef.current.postMessage({
+                  type: 'sync-response',
+                  user: { ...currentUser },
+                  timestamp: Date.now(),
+                } as UserMessage);
+              } catch (error) {
+                console.warn('Failed to send sync-response via BroadcastChannel:', error);
+              }
             }
           }
           break;
@@ -243,8 +252,9 @@ export const useCollaborativeSession = () => {
 
   useEffect(() => {
     broadcastChannelRef.current = new BroadcastChannel(
-      'dashboard-native-channel'
+      'dashboard-broadcast-v2'
     );
+    isBroadcastChannelClosedRef.current = false;
 
     const handleMessage = (event: MessageEvent) => {
       console.log('📻 Native BroadcastChannel message received:', event.data);
@@ -260,6 +270,7 @@ export const useCollaborativeSession = () => {
           handleMessage
         );
         broadcastChannelRef.current.close();
+        isBroadcastChannelClosedRef.current = true;
       }
     };
   }, [handleNativeMessage]);
@@ -272,8 +283,12 @@ export const useCollaborativeSession = () => {
         channel.postMessage(data);
       }
 
-      if (broadcastChannelRef.current) {
-        broadcastChannelRef.current.postMessage(data);
+      if (broadcastChannelRef.current && !isBroadcastChannelClosedRef.current) {
+        try {
+          broadcastChannelRef.current.postMessage(data);
+        } catch (error) {
+          console.warn('Failed to send message via BroadcastChannel:', error);
+        }
       }
     },
     [channel]
@@ -286,6 +301,24 @@ export const useCollaborativeSession = () => {
         const updatedUser = addActivityToUser(currentUser, newActivity);
         savePersistentUser(updatedUser);
         currentUserRef.current = updatedUser;
+        
+        // Update the current user state
+        setCurrentUser(updatedUser);
+
+        // Update the current user in the users list immediately
+        setUsers((prevUsers) => {
+          const existingUserIndex = prevUsers.findIndex(
+            (u) => u.id === updatedUser.id
+          );
+          
+          if (existingUserIndex >= 0) {
+            const newUsers = [...prevUsers];
+            newUsers[existingUserIndex] = updatedUser;
+            return newUsers;
+          } else {
+            return [...prevUsers, updatedUser];
+          }
+        });
 
         postMessage({
           type: 'activity',
@@ -294,7 +327,7 @@ export const useCollaborativeSession = () => {
         } as UserMessage);
       }
     },
-    [currentUser, postMessage]
+    [currentUser, postMessage, setCurrentUser]
   );
 
   const removeInactiveUsers = useCallback(() => {
@@ -430,6 +463,20 @@ export const useCollaborativeSession = () => {
       }
     });
   }, [messages, postMessage, currentUser]);
+
+  // Initialize current user in the users list
+  useEffect(() => {
+    setUsers((prevUsers) => {
+      const existingUserIndex = prevUsers.findIndex(
+        (u) => u.id === currentUser.id
+      );
+      
+      if (existingUserIndex === -1) {
+        return [...prevUsers, currentUser];
+      }
+      return prevUsers;
+    });
+  }, [currentUser]);
 
   useEffect(() => {
     const userId = currentUser.id;

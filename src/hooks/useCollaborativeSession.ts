@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BroadcastMessage, useBroadcastProvider } from 'react-broadcast-sync';
 
 export interface User {
@@ -29,10 +29,17 @@ export interface CounterState {
 }
 
 interface UserMessage {
-  type: 'join' | 'leave' | 'sync-request' | 'sync-response' | 'activity';
+  type:
+    | 'join'
+    | 'leave'
+    | 'sync-request'
+    | 'sync-response'
+    | 'activity'
+    | 'counter-update';
   user?: User;
   userId?: string;
   users?: User[];
+  counter?: CounterState;
   timestamp: number;
 }
 
@@ -73,7 +80,10 @@ const getUserHashFromUrl = () => {
   return hash || null;
 };
 
-const createActivity = (type: Activity['type'], metadata?: Record<string, unknown>): Activity => ({
+const createActivity = (
+  type: Activity['type'],
+  metadata?: Record<string, unknown>
+): Activity => ({
   type,
   timestamp: Date.now(),
   metadata,
@@ -91,7 +101,7 @@ const setUserHashInUrl = (hash: string) => {
 const createUserSession = (): User => {
   const existingHash = getUserHashFromUrl();
   let userHash = existingHash;
-  
+
   if (!userHash) {
     userHash = generateId();
     setUserHashInUrl(userHash);
@@ -108,7 +118,10 @@ const createUserSession = (): User => {
         parsedUser.activities = [createActivity('session_created')];
       }
 
-      const updatedUser = addActivityToUser(parsedUser, createActivity('session_created'));
+      const updatedUser = addActivityToUser(
+        parsedUser,
+        createActivity('session_created')
+      );
       localStorage.setItem(userKey, JSON.stringify(updatedUser));
       return updatedUser;
     } catch {}
@@ -122,7 +135,8 @@ const createUserSession = (): User => {
 
   localStorage.setItem(userKey, JSON.stringify(newUser));
   return newUser;
-};const savePersistentUser = (user: User) => {
+};
+const savePersistentUser = (user: User) => {
   const userKey = `dashboard-user-${user.id}`;
   localStorage.setItem(userKey, JSON.stringify(user));
 };
@@ -140,88 +154,111 @@ export const useCollaborativeSession = () => {
 
   const { messages, channel } = useBroadcastProvider();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
-  console.log('🔗 Broadcast channel state:', { 
-    channel: !!channel, 
+  console.log('🔗 Broadcast channel state:', {
+    channel: !!channel,
     messagesCount: messages.length,
-    channelName: channel ? 'available' : 'null'
+    channelName: channel ? 'available' : 'null',
   });
 
-  const handleNativeMessage = useCallback((message: UserMessage) => {
-    if (message.userId === currentUser.id) return;
+  const handleNativeMessage = useCallback(
+    (message: UserMessage) => {
+      if (message.userId === currentUser.id) return;
 
-    switch (message.type) {
-      case 'join':
-      case 'sync-response':
-      case 'activity':
-        if (message.user && message.user.id !== currentUser.id) {
-          setUsers((prevUsers) => {
-            const existingUserIndex = prevUsers.findIndex(
-              (u) => u.id === message.user!.id
-            );
-            
-            console.log('➕ Adding/updating user via native channel:', message.user);
-            
-            if (existingUserIndex >= 0) {
-              const newUsers = [...prevUsers];
-              newUsers[existingUserIndex] = message.user!;
-              return newUsers;
-            } else {
-              return [...prevUsers, message.user!];
-            }
-          });
+      switch (message.type) {
+        case 'join':
+        case 'sync-response':
+        case 'activity':
+          if (message.user && message.user.id !== currentUser.id) {
+            setUsers((prevUsers) => {
+              const existingUserIndex = prevUsers.findIndex(
+                (u) => u.id === message.user!.id
+              );
 
-          if (message.type === 'join') {
-            setTimeout(() => {
-              if (broadcastChannelRef.current) {
-                broadcastChannelRef.current.postMessage({
-                  type: 'sync-response',
-                  user: { ...currentUser },
-                  timestamp: Date.now(),
-                } as UserMessage);
+              console.log(
+                '➕ Adding/updating user via native channel:',
+                message.user
+              );
+
+              if (existingUserIndex >= 0) {
+                const newUsers = [...prevUsers];
+                newUsers[existingUserIndex] = message.user!;
+                return newUsers;
+              } else {
+                return [...prevUsers, message.user!];
               }
-            }, 50);
+            });
+
+            if (message.type === 'join') {
+              setTimeout(() => {
+                if (broadcastChannelRef.current) {
+                  broadcastChannelRef.current.postMessage({
+                    type: 'sync-response',
+                    user: { ...currentUser },
+                    timestamp: Date.now(),
+                  } as UserMessage);
+                }
+              }, 50);
+            }
           }
-        }
-        break;
-      case 'leave':
-        if (message.userId && message.userId !== currentUser.id) {
-          console.log('👋 User leaving via native channel:', message.userId);
-          setUsers((prevUsers) =>
-            prevUsers.filter((u) => u.id !== message.userId)
-          );
-        }
-        break;
-      case 'sync-request':
-        if (message.userId !== currentUser.id) {
-          console.log('🔄 Native sync request received from:', message.userId);
-          if (broadcastChannelRef.current) {
-            broadcastChannelRef.current.postMessage({
-              type: 'sync-response',
-              user: { ...currentUser },
-              timestamp: Date.now(),
-            } as UserMessage);
+          break;
+        case 'leave':
+          if (message.userId && message.userId !== currentUser.id) {
+            console.log('👋 User leaving via native channel:', message.userId);
+            setUsers((prevUsers) =>
+              prevUsers.filter((u) => u.id !== message.userId)
+            );
           }
-        }
-        break;
-    }
-  }, [currentUser]);
+          break;
+        case 'sync-request':
+          if (message.userId !== currentUser.id) {
+            console.log(
+              '🔄 Native sync request received from:',
+              message.userId
+            );
+            if (broadcastChannelRef.current) {
+              broadcastChannelRef.current.postMessage({
+                type: 'sync-response',
+                user: { ...currentUser },
+                timestamp: Date.now(),
+              } as UserMessage);
+            }
+          }
+          break;
+        case 'counter-update':
+          if (message.counter) {
+            console.log(
+              '🔢 Counter update via native channel:',
+              message.counter
+            );
+            setCounter(message.counter);
+          }
+          break;
+      }
+    },
+    [currentUser]
+  );
 
   useEffect(() => {
-    broadcastChannelRef.current = new BroadcastChannel('dashboard-native-channel');
-    
+    broadcastChannelRef.current = new BroadcastChannel(
+      'dashboard-native-channel'
+    );
+
     const handleMessage = (event: MessageEvent) => {
       console.log('📻 Native BroadcastChannel message received:', event.data);
       handleNativeMessage(event.data);
     };
-    
+
     broadcastChannelRef.current.addEventListener('message', handleMessage);
 
     return () => {
       if (broadcastChannelRef.current) {
-        broadcastChannelRef.current.removeEventListener('message', handleMessage);
+        broadcastChannelRef.current.removeEventListener(
+          'message',
+          handleMessage
+        );
         broadcastChannelRef.current.close();
       }
     };
@@ -230,11 +267,11 @@ export const useCollaborativeSession = () => {
   const postMessage = useCallback(
     (data: UserMessage) => {
       console.log('📤 Sending message:', data);
-      
+
       if (channel) {
         channel.postMessage(data);
       }
-      
+
       if (broadcastChannelRef.current) {
         broadcastChannelRef.current.postMessage(data);
       }
@@ -242,20 +279,23 @@ export const useCollaborativeSession = () => {
     [channel]
   );
 
-  const addUserActivity = useCallback((activityType: Activity['type'], metadata?: Record<string, unknown>) => {
-    if (currentUser) {
-      const newActivity = createActivity(activityType, metadata);
-      const updatedUser = addActivityToUser(currentUser, newActivity);
-      savePersistentUser(updatedUser);
-      currentUserRef.current = updatedUser;
+  const addUserActivity = useCallback(
+    (activityType: Activity['type'], metadata?: Record<string, unknown>) => {
+      if (currentUser) {
+        const newActivity = createActivity(activityType, metadata);
+        const updatedUser = addActivityToUser(currentUser, newActivity);
+        savePersistentUser(updatedUser);
+        currentUserRef.current = updatedUser;
 
-      postMessage({
-        type: 'activity',
-        user: updatedUser,
-        timestamp: Date.now(),
-      } as UserMessage);
-    }
-  }, [currentUser, postMessage]);
+        postMessage({
+          type: 'activity',
+          user: updatedUser,
+          timestamp: Date.now(),
+        } as UserMessage);
+      }
+    },
+    [currentUser, postMessage]
+  );
 
   const removeInactiveUsers = useCallback(() => {
     return;
@@ -327,7 +367,7 @@ export const useCollaborativeSession = () => {
                 user: { ...currentUser },
                 timestamp: Date.now(),
               } as UserMessage);
-              
+
               setTimeout(() => {
                 postMessage({
                   type: 'join',
@@ -362,7 +402,7 @@ export const useCollaborativeSession = () => {
                 const existingUserIndex = prevUsers.findIndex(
                   (u) => u.id === message.user!.id
                 );
-                
+
                 if (existingUserIndex >= 0) {
                   const newUsers = [...prevUsers];
                   newUsers[existingUserIndex] = message.user!;
@@ -370,10 +410,20 @@ export const useCollaborativeSession = () => {
                   return newUsers;
                 } else {
                   const newUsers = [...prevUsers, message.user!];
-                  console.log('➕ Adding user from activity, new list:', newUsers);
+                  console.log(
+                    '➕ Adding user from activity, new list:',
+                    newUsers
+                  );
                   return newUsers;
                 }
               });
+            }
+            break;
+
+          case 'counter-update':
+            if (message.counter) {
+              console.log('🔢 Counter update received:', message.counter);
+              setCounter(message.counter);
             }
             break;
         }
@@ -466,16 +516,24 @@ export const useCollaborativeSession = () => {
   };
 
   const updateCounter = (newValue: number) => {
-    addUserActivity('counter_updated', { 
-      oldValue: counter.value, 
-      newValue: newValue 
+    addUserActivity('counter_updated', {
+      oldValue: counter.value,
+      newValue: newValue,
     });
-    setCounter((prev) => ({
-      ...prev,
+
+    const newCounterState = {
       value: newValue,
       lastChangedBy: currentUser.name,
       lastChangeAt: Date.now(),
-    }));
+    };
+
+    setCounter(newCounterState);
+
+    postMessage({
+      type: 'counter-update',
+      counter: newCounterState,
+      timestamp: Date.now(),
+    } as UserMessage);
   };
 
   const addUser = (user: User) => {
@@ -488,14 +546,14 @@ export const useCollaborativeSession = () => {
   };
 
   const allUsers = useMemo(() => {
-    const currentUserWithActivity = { 
-      ...currentUserRef.current
+    const currentUserWithActivity = {
+      ...currentUserRef.current,
     };
-    
-    const otherUsers = users.filter(user => user.id !== currentUser.id);
-    
+
+    const otherUsers = users.filter((user) => user.id !== currentUser.id);
+
     const result = [currentUserWithActivity, ...otherUsers];
-    
+
     return result;
   }, [users, currentUser]);
 
